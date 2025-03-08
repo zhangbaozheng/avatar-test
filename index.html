@@ -116,7 +116,7 @@
         <input type="file" id="upload" multiple accept="image/*">
         
         <div class="input-group">
-            <label for="image-size">大小:</label>
+            <span id="size-value">150</span>
             <input type="range" id="image-size" min="50" max="600" value="150">
         </div>
         
@@ -163,6 +163,7 @@
             <a href="https://t.me/mystonks" target="_blank"><img src="./img/tg.png" alt="">点击跳转</a>
         </p>
     </div>
+    <script src="./js/avatar-js/index.js"></script>
     <script>
         const tgDom = document.querySelector('.tg-s')
         const aboutDom = document.querySelector('.about-s')
