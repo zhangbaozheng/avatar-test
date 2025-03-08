@@ -110,8 +110,9 @@ canvas.addEventListener('touchend', stopDrag);
 const resolutionSelect = document.getElementById('resolution');
 
 download.addEventListener('click', () => {
-    const quality = 1.0;
-    const resolution = parseInt(resolutionSelect.value);
+    const format = 'image/png';  // 可修改为 'image/jpeg'
+    const quality = format === 'image/jpeg' ? 0.9 : 1.0;
+    const resolution = parseInt(resolutionSelect.value) || 3;  // 默认 3x 高清
 
     // 1. 创建高清离屏 Canvas
     const offscreenCanvas = document.createElement('canvas');
@@ -119,39 +120,66 @@ download.addEventListener('click', () => {
     
     offscreenCanvas.width = canvas.width * resolution;
     offscreenCanvas.height = canvas.height * resolution;
-    
+
     // 2. 先绘制背景颜色（仅当未使用背景图片）
     if (!useBackgroundImage) {
         offscreenCtx.fillStyle = backgroundColor;
         offscreenCtx.fillRect(0, 0, offscreenCanvas.width, offscreenCanvas.height);
     }
 
-    // 3. 重新绘制 **高分辨率背景图**
+    // 3. **确保上传的图片正确绘制**
+    images.forEach(({ img, x, y }) => {
+        offscreenCtx.save();
+        offscreenCtx.globalAlpha = 1.0;  // 确保不透明度为 1.0
+        offscreenCtx.beginPath();
+
+        // 修正剪切区域，确保正确居中
+        const centerX = x * resolution;
+        const centerY = y * resolution;
+        const radius = (imageSize / 2) * resolution;
+
+        offscreenCtx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        offscreenCtx.closePath();
+        offscreenCtx.clip();
+
+        // **修正绘制图片的坐标**
+        offscreenCtx.drawImage(img, 
+            (x - imageSize / 2) * resolution, 
+            (y - imageSize / 2) * resolution, 
+            imageSize * resolution, 
+            imageSize * resolution
+        );
+
+        offscreenCtx.restore();
+    });
+
+    // 4. **绘制高分辨率背景图**
     if (useBackgroundImage && backgroundImage.complete) {
         offscreenCtx.drawImage(backgroundImage, 0, 0, offscreenCanvas.width, offscreenCanvas.height);
     }
 
-    // 4. 重新绘制上传的图片（高清）
-    images.forEach(({ img, x, y }) => {
-        offscreenCtx.save();
-        offscreenCtx.globalAlpha = 0.9;
-        offscreenCtx.beginPath();
-        offscreenCtx.arc(x * resolution, y * resolution, (imageSize / 2) * resolution, 0, Math.PI * 2);
-        offscreenCtx.closePath();
-        offscreenCtx.clip();
-        offscreenCtx.drawImage(img, (x - imageSize / 2) * resolution, (y - imageSize / 2) * resolution, imageSize * resolution, imageSize * resolution);
-        offscreenCtx.restore();
-    });
-
-    // 5. 高质量导出
+    // 5. **高质量导出**
     offscreenCanvas.toBlob((blob) => {
+        if (!blob) {
+            console.error('Failed to create high-quality image blob');
+            return;
+        }
+
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
+        
+        // 生成时间戳文件名
+        const fileExtension = format === 'image/png' ? 'png' : 'jpg';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         link.href = url;
-        link.download = 'merged-image.png';
+        link.download = `high-quality-image-${timestamp}.${fileExtension}`;
+
+        // 执行下载
         document.body.appendChild(link);
         link.click();
+
+        // 清理内存
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-    }, 'image/png', quality);
+    }, format, quality);
 });
